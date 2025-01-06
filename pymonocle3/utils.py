@@ -7,11 +7,13 @@
 @Time: 2025/1/6 16:58
 @Describe:
 """
+import numpy as np
 import pandas as pd
 import scanpy as sc
+from typing import Literal
 from anndata import AnnData
 from pathlib import Path, PurePath
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, issparse
 
 def load_data(dirs: str = None, fname: Path | str = None, **kwargs) -> AnnData:
     """
@@ -60,10 +62,48 @@ def create_adata(
 
     Returns
     -------
-    A anndata object
+    A anndata object, n_cells * n_genes
     """
     assert tuple(expression_matrix.shape[0]) != (cell_metadata.shape[0], gene_meta.shape[0]), "Mismatch in shapes!"
 
     if sparse: expression_matrix = csr_matrix(expression_matrix)
     adata = AnnData(X=expression_matrix, obs=cell_metadata, var=gene_meta, **kwargs)
     return adata
+
+
+def normalize_data(adata: AnnData, method: Literal['log1p']):
+    pass
+
+def estimate_size_factors(adata: AnnData, round_exprs: bool = True, method: Literal['log', 'normalize'] = 'log'):
+    
+    if round_exprs: 
+        if issparse(adata.X):
+            adata.X.data = np.round(adata.X.data).astype(int)
+        else:
+            adata.X = adata.X.round().astype(int)
+
+    cell_sums = adata.X.sum(axis=1) # Note: sum of each cell
+
+    if issparse(cell_sums):
+        cell_sums = cell_sums.A.flatten()  # 稀疏矩阵转密集
+    else:
+        cell_sums = cell_sums.flatten()
+
+    if (cell_sums == 0).any(): raise ValueError("Some cells have zero counts, cannot compute size factors.")
+
+    # if method == 'normalize':
+    #     sfs = cell_sums / np.exp(np.mean(np.log(cell_sums)))
+    # elif method == 'log':
+    #     sfs = np.log(cell_sums) / np.exp(np.mean(np.log(np.log(cell_sums))))
+    # else:
+    #     raise ValueError(f"Unsupported method: {method}")
+    methods = {
+        'normalize': cell_sums / np.exp(np.mean(np.log(cell_sums))),
+        'log': np.log(cell_sums) / np.exp(np.mean(np.log(np.log(cell_sums)))),
+    }
+
+    if method not in methods: raise ValueError(f"Unsupported method: {method}")
+
+    sfs = methods[method]
+    sfs = np.nan_to_num(sfs, nan=1)
+    return sfs
