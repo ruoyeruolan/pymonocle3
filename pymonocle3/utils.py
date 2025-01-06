@@ -62,7 +62,8 @@ def create_adata(
     -------
     A anndata object
     """
-    if sparse: expression_matrix = csr_matrix(expression_matrix)
     assert tuple(expression_matrix.shape[0]) != (cell_metadata.shape[0], gene_meta.shape[0]), "Mismatch in shapes!"
+
+    if sparse: expression_matrix = csr_matrix(expression_matrix)
     adata = AnnData(X=expression_matrix, obs=cell_metadata, var=gene_meta, **kwargs)
     return adata
