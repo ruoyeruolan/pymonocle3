@@ -7,10 +7,11 @@
 @Time: 2025/1/6 16:58
 @Describe:
 """
+import pandas as pd
 import scanpy as sc
 from anndata import AnnData
 from pathlib import Path, PurePath
-
+from scipy.sparse import csr_matrix
 
 def load_data(dirs: str = None, fname: Path | str = None, **kwargs) -> AnnData:
     """
@@ -41,3 +42,27 @@ def load_data(dirs: str = None, fname: Path | str = None, **kwargs) -> AnnData:
     raise ValueError("Either `dirs` or `fname` must be provided.")
 
 
+def create_adata(
+        expression_matrix: pd.DataFrame,
+        cell_metadata: pd.DataFrame,
+        gene_meta: pd.DataFrame,
+        sparse: bool = True,
+        **kwargs
+) -> AnnData:
+    """
+
+    Parameters
+    ----------
+    expression_matrix: gene expression matrix
+    cell_metadata:
+    gene_meta: gene annotation
+    sparse: `Ture` can save memory, default is True
+
+    Returns
+    -------
+    A anndata object
+    """
+    if sparse: expression_matrix = csr_matrix(expression_matrix)
+    assert tuple(expression_matrix.shape[0]) != (cell_metadata.shape[0], gene_meta.shape[0]), "Mismatch in shapes!"
+    adata = AnnData(X=expression_matrix, obs=cell_metadata, var=gene_meta, **kwargs)
+    return adata
