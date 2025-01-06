@@ -85,7 +85,7 @@ def estimate_size_factors(adata: AnnData, round_exprs: bool = True, method: Lite
     cell_sums = adata.X.sum(axis=1) # Note: sum of each cell
 
     if issparse(cell_sums):
-        cell_sums = cell_sums.A.flatten()  # 稀疏矩阵转密集
+        cell_sums = cell_sums.A.flatten()  # sparse matrix to dense array
     else:
         cell_sums = cell_sums.flatten()
 
