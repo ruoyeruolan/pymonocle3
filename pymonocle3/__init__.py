@@ -7,3 +7,12 @@
 @Time: 2025/1/6 16:46
 @Describe:
 """
+
+VERSION = '0.1.0'
+
+__author__ = "ruoyeruolan"
+__email__ = "ryrl970311@gmail.com"
+
+
+__all__ = ['utils']
+__version__ = VERSION
