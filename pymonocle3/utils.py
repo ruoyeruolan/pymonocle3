@@ -75,6 +75,30 @@ def normalize_data(adata: AnnData, method: Literal['log1p']):
     pass
 
 def estimate_size_factors(adata: AnnData, round_exprs: bool = True, method: Literal['log', 'normalize'] = 'log'):
+    """
+    Estimate size factors for each cell.
+
+    Parameters
+    ----------
+    adata
+        Anndata object, n_cells * n_genes
+    round_exprs, optional
+        whether to round expression values to integers, by default True
+    method, optional
+        method to compute size factors, by default 'log'
+
+    Returns
+    -------
+    np.ndarray
+        size factors for each cell
+
+    Raises
+    ------
+    ValueError
+        zero counts in some cells
+    ValueError
+        method is not supported
+    """
     
     if round_exprs: 
         if issparse(adata.X):
