@@ -7,11 +7,16 @@
 @Time       : 2025/1/6 16:58
 @Describe   :
 """
+import logging
+import warnings
+import numpy as np
 import pandas as pd
 import scanpy as sc
 from anndata import AnnData
 from pathlib import Path, PurePath
-from scipy.sparse import csr_matrix
+from typing import Literal
+from scipy.sparse import csr_matrix, issparse
+from sklearn.decomposition import TruncatedSVD as skTruncatedSVD
 
 def load_data(dirs: str = None, fname: Path | str = None, **kwargs) -> AnnData:
     """
@@ -67,3 +72,61 @@ def create_adata(
     if sparse: expression_matrix = csr_matrix(expression_matrix)
     adata = AnnData(X=expression_matrix, obs=cell_metadata, var=gene_meta, **kwargs)
     return adata
+
+
+def perform_svd(adata: AnnData,
+                center: bool = True,
+                scale: bool = True,
+                n_components: int = 50,
+                algorithm: Literal['arpack', 'randomized'] = 'randomized', **kwargs) -> AnnData:
+    """
+    Perform SVD on matrix
+    Parameters
+    ----------
+    adata: AnnData, n_cells * n_genes
+    center: bool, whether to center the data, if `adata.X` is sparse, it will be converted to dense, default is True
+    scale: bool, whether to scale the data, default is True
+    n_components: int, number of components to keep, default is 50
+    algorithm:  str, algorithm to use, default is 'randomized'
+    kwargs: additional arguments for `sklearn.decomposition.TruncatedSVD` and `scanpy.pp.scale`
+
+    Returns
+    -------
+    AnnData, with `X_svd`, `right_`, `left_`, `svd` in `obsm`, `varm`, `uns`, respectively
+    """
+    
+    if issparse(adata.X):
+        warnings.warn(
+            'The input data is sparse, centering will make it dense, '
+            'if the data is too large, it may cause memory error.'
+        )
+    
+    if center is False and scale is True:
+        logging.info('Just scaling the data...')
+
+    if scale is True:
+        sc.pp.scale(adata, zero_center=center, **kwargs)
+
+    logging.info(f'Performing SVD with {n_components} components...')
+    cls = skTruncatedSVD(n_components=n_components, algorithm=algorithm, **kwargs)
+    cls = cls.fit(adata.X)
+    v = cls.components_.T
+    d = cls.singular_values_
+
+    cls_ = cls.transform(adata.X)
+    u = cls_ / d[np.newaxis, :]
+
+    logging.info(f'Add SVD results to adata...')
+    adata.obsm['X_svd'] = cls_
+    adata.varm['right_'] = v
+    adata.obsm['left_'] = u
+    adata.uns['svd'] = {
+        'singular_values': d,
+        'n_components': n_components,
+    }
+    return adata
+
+
+    
+
+

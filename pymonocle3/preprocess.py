@@ -10,8 +10,8 @@
 import numpy as np
 import scanpy as sc
 from anndata import AnnData
-from typing import Literal, Union, Optional
 from scipy.sparse import issparse
+from typing import Literal, Optional
 
 
 def normalize_data(adata: AnnData, method: Literal['log1p', 'size'],
