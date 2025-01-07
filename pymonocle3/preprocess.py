@@ -23,7 +23,9 @@ def normalize_data(adata: AnnData, method: Literal['log1p', 'size'],
     adata:
         AnnData object, n_cells * n_genes
     method:
-        method to normalize data, by default 'log1p'
+        method to normalize data, by default 'log1p'.
+        `log1p`: log1p normalization
+        `size`: size factor normalization
     key_added:
         Name of the field in `adata.obs` where the normalization factor is stored.
     layer:
