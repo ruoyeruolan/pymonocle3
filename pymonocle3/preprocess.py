@@ -9,16 +9,36 @@
 """
 import numpy as np
 import scanpy as sc
-from typing import Literal
 from anndata import AnnData
+from typing import Literal, Union, Optional
 from scipy.sparse import issparse
 
 
 def normalize_data(adata: AnnData, method: Literal['log1p', 'size'],
-                   key_added: str | None = None, layer: str | None = None, **kwargs):
+                   key_added: str | None = None, layer: str | None = None, **kwargs) -> Optional[AnnData]:
+    """
+
+    Parameters
+    ----------
+    adata:
+        AnnData object, n_cells * n_genes
+    method:
+        method to normalize data, by default 'log1p'
+    key_added:
+        Name of the field in `adata.obs` where the normalization factor is stored.
+    layer:
+        Layer to normalize instead of `X`. If `None`, `X` is normalized.
+    kwargs:
+        additional arguments for normalization, a dict, see `scanpy.pp.normalize_total`
+
+    Returns
+    -------
+    Optional[AnnData]
+        AnnData object if `copy=True` is passed in **kwargs.
+        None if `copy=False` (modifies adata in place). 
+    """
 
     # copy = kwargs.get('copy', False)
-
     if method == 'log1p': return sc.pp.log1p(adata, layer=layer, **kwargs)
 
     elif method == 'size': return sc.pp.normalize_total(adata=adata, key_added=key_added, layer=layer, **kwargs)
