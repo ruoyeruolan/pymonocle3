@@ -83,6 +83,13 @@ class DimensionReduction:
         self.model = self._initialize_model(model)
     
     def center_scale(self, adata: AnnData):
+        """
+        _summary_
+
+        Parameters
+        ----------
+        adata: AnnData, n_cells * n_genes, should be normalized and log-transformed
+        """
         
         if issparse(adata.X) and self.center:
             warnings.warn(

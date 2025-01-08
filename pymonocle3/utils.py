@@ -16,7 +16,7 @@ import pandas as pd
 import scanpy as sc
 from anndata import AnnData
 from pathlib import Path, PurePath
-from typing import Literal
+from typing import Literal, Optional
 from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import TruncatedSVD, PCA
 
@@ -141,3 +141,86 @@ def get_singular_values(adata: AnnData, method: Literal['svd', 'pca'] = 'svd'):
 
     u = adata.obsm[method] / d[np.newaxis, :]  # left singular vectors
     return u, d, v
+
+
+def normalize_data(adata: AnnData, method: Literal['log1p', 'size'] = 'log1p',
+                   key_added: str | None = None, layer: str | None = None, **kwargs) -> Optional[AnnData]:
+    """
+
+    Parameters
+    ----------
+    adata:
+        AnnData object, n_cells * n_genes
+    method:
+        method to normalize data, by default 'log1p'.
+        `log1p`: log1p normalization
+        `size`: size factor normalization
+    key_added:
+        Name of the field in `adata.obs` where the normalization factor is stored.
+    layer:
+        Layer to normalize instead of `X`. If `None`, `X` is normalized.
+    kwargs:
+        additional arguments for normalization, a dict, see `scanpy.pp.normalize_total`
+
+    Returns
+    -------
+    Optional[AnnData]
+        AnnData object if `copy=True` is passed in **kwargs.
+        None if `copy=False` (modifies adata in place). 
+    """
+
+    # copy = kwargs.get('copy', False)
+    if method == 'log1p': return sc.pp.log1p(adata, layer=layer, **kwargs)
+
+    elif method == 'size': return sc.pp.normalize_total(adata=adata, key_added=key_added, layer=layer, **kwargs)
+
+    else: raise ValueError(f"Unsupported method: {method}")
+
+
+def estimate_size_factors(adata: AnnData,
+                          round_exprs: bool = False,
+                          method: Literal['log', 'normalize'] = 'log') -> AnnData:
+    """
+    Estimate size factors for each cell.
+
+    Parameters
+    ----------
+    adata: Anndata object, n_cells * n_genes
+    round_exprs: whether to round expression values to integers, by default True
+    method: method to compute size factors, by default 'log'
+
+    Returns
+    -------
+    np.ndarray
+        size factors for each cell
+
+    Raises
+    ------
+    ValueError
+        zero counts in some cells
+    ValueError
+        method is not supported
+    """
+    
+    if round_exprs: 
+        if issparse(adata.X):
+            adata.X.data = np.round(adata.X.data).astype(int)
+            adata.X.eliminate_zeros()
+        else:
+            adata.X = adata.X.round().astype(int)
+
+    cell_sums = adata.X.sum(axis=1) # Note: sum of each cell
+
+    if (cell_sums == 0).any(): raise ValueError("Some cells have zero counts, cannot compute size factors.")
+
+    methods = {
+        'normalize': cell_sums / np.exp(np.mean(np.log(cell_sums))),
+        'log': np.log(cell_sums) / np.exp(np.mean(np.log(np.log(cell_sums)))),
+    }
+
+    if method not in methods: raise ValueError(f"Unsupported method: {method}")
+
+    sfs = methods[method]
+    sfs = np.nan_to_num(sfs, nan=1)
+    adata.obs['SizeFactor'] = sfs
+    return adata

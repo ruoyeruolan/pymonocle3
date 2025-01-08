@@ -13,6 +13,6 @@ VERSION = '0.1.0'
 __author__ = "ruoyeruolan"
 __email__ = "ryrl970311@gmail.com"
 
+__version__ = VERSION
 
 __all__ = ['utils']
-__version__ = VERSION

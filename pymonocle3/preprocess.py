@@ -7,91 +7,56 @@
 @Time       : 2025/01/07 14:07
 @Describe:
 """
-import numpy as np
+import logging
 import scanpy as sc
 from anndata import AnnData
-from scipy.sparse import issparse
-from typing import Literal, Optional
+from typing import Optional
+
+from nearest_neighbors import make_nn_index
+from decomposition import DimensionReduction
 
 
-def normalize_data(adata: AnnData, method: Literal['log1p', 'size'],
-                   key_added: str | None = None, layer: str | None = None, **kwargs) -> Optional[AnnData]:
+def preprocess_adata(adata: AnnData, model: str = 'pca', n_components: int = 50,
+        center: bool = True, scale: bool = True, 
+        build_nn_index: bool = False, nn_control: dict | None = None, verbose = False,
+        use_genes: Optional[list[str]] = None, **kwargs) -> AnnData:
     """
-
+    Preprocess the AnnData.
     Parameters
     ----------
-    adata:
-        AnnData object, n_cells * n_genes
-    method:
-        method to normalize data, by default 'log1p'.
-        `log1p`: log1p normalization
-        `size`: size factor normalization
-    key_added:
-        Name of the field in `adata.obs` where the normalization factor is stored.
-    layer:
-        Layer to normalize instead of `X`. If `None`, `X` is normalized.
-    kwargs:
-        additional arguments for normalization, a dict, see `scanpy.pp.normalize_total`
+    adata
+    model
+    n_components
+    center
+    scale
+    build_nn_index
+    nn_control
+    verbose
+    use_genes
+    kwargs
 
     Returns
     -------
-    Optional[AnnData]
-        AnnData object if `copy=True` is passed in **kwargs.
-        None if `copy=False` (modifies adata in place). 
+
     """
-
-    # copy = kwargs.get('copy', False)
-    if method == 'log1p': return sc.pp.log1p(adata, layer=layer, **kwargs)
-
-    elif method == 'size': return sc.pp.normalize_total(adata=adata, key_added=key_added, layer=layer, **kwargs)
-
-    else: raise ValueError(f"Unsupported method: {method}")
-
-
-def estimate_size_factors(adata: AnnData,
-                          round_exprs: bool = False,
-                          method: Literal['log', 'normalize'] = 'log') -> AnnData:
-    """
-    Estimate size factors for each cell.
-
-    Parameters
-    ----------
-    adata: Anndata object, n_cells * n_genes
-    round_exprs: whether to round expression values to integers, by default True
-    method: method to compute size factors, by default 'log'
-
-    Returns
-    -------
-    np.ndarray
-        size factors for each cell
-
-    Raises
-    ------
-    ValueError
-        zero counts in some cells
-    ValueError
-        method is not supported
-    """
+    if not isinstance(adata, AnnData):
+        raise ValueError('adata must be an AnnData object.')
     
-    if round_exprs: 
-        if issparse(adata.X):
-            adata.X.data = np.round(adata.X.data).astype(int)
-            adata.X.eliminate_zeros()
-        else:
-            adata.X = adata.X.round().astype(int)
+    if build_nn_index and nn_control is not None:
+        index = make_nn_index(adata, nn_control, verbose)
+        adata.uns['nn_index'] = index
+        adata.uns['nn_control'] = nn_control
+    else:
+        raise ValueError('Cannot build nearest neighbors index without nn_control.')
+    
+    logging.info(f"Normalizing data ...")
+    sc.pp.normalize_total(adata, target_sum=1e4)
+    sc.pp.log1p(adata)
 
-    cell_sums = adata.X.sum(axis=1) # Note: sum of each cell
+    # adata = adata[:, adata.X.sum(axis=0) > 0 & adata.X.sum(axis=1) != np.inf]
+    adata.layers['FM'] = adata.X.copy()[:, use_genes] if use_genes else adata.X.copy()
 
-    if (cell_sums == 0).any(): raise ValueError("Some cells have zero counts, cannot compute size factors.")
-
-    methods = {
-        'normalize': cell_sums / np.exp(np.mean(np.log(cell_sums))),
-        'log': np.log(cell_sums) / np.exp(np.mean(np.log(np.log(cell_sums)))),
-    }
-
-    if method not in methods: raise ValueError(f"Unsupported method: {method}")
-
-    sfs = methods[method]
-    sfs = np.nan_to_num(sfs, nan=1)
-    adata.obs['SizeFactor'] = sfs
+    dim_reduction = DimensionReduction(model=model, n_components=n_components, center=center, scale=scale, **kwargs)
+    adata = dim_reduction.fit(adata)
+    adata = dim_reduction.transform(adata)
     return adata
