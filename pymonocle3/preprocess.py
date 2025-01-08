@@ -18,8 +18,7 @@ from pymonocle3.decomposition import DimensionReduction
 
 def preprocess_adata(adata: AnnData, model: str = 'pca', n_components: int = 50,
         center: bool = True, scale: bool = True, 
-        build_nn_index: bool = False, nn_control: dict | None = None, verbose = False,
-        use_genes: Optional[list[str]] = None, **kwargs) -> AnnData:
+        build_nn_index: bool = False, nn_control: dict | None = None, verbose = False, **kwargs) -> AnnData:
     """
     Preprocess the AnnData.
     Parameters
@@ -32,7 +31,6 @@ def preprocess_adata(adata: AnnData, model: str = 'pca', n_components: int = 50,
     build_nn_index
     nn_control
     verbose
-    use_genes
     kwargs
 
     Returns
@@ -42,19 +40,17 @@ def preprocess_adata(adata: AnnData, model: str = 'pca', n_components: int = 50,
     if not isinstance(adata, AnnData):
         raise ValueError('adata must be an AnnData object.')
     
-    if build_nn_index and nn_control is not None:
-        index = make_nn_index(adata, nn_control, verbose)
+    if build_nn_index:
+        index, nn_control = make_nn_index(adata, nn_control, verbose)
         adata.uns['nn_index'] = index
         adata.uns['nn_control'] = nn_control
-    else:
-        raise ValueError('Cannot build nearest neighbors index without nn_control.')
-    
+
     logging.info(f"Normalizing data ...")
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
 
     # adata = adata[:, adata.X.sum(axis=0) > 0 & adata.X.sum(axis=1) != np.inf]
-    adata.layers['FM'] = adata.X.copy()[:, use_genes] if use_genes else adata.X.copy()
+    # adata.layers['FM'] = adata.X.copy()[:, use_genes] if use_genes else adata.X.copy()
 
     dim_reduction = DimensionReduction(model=model, n_components=n_components, center=center, scale=scale, **kwargs)
     adata = dim_reduction.fit(adata)

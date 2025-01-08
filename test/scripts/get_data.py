@@ -8,6 +8,8 @@
 @Describe   :
 """
 import scanpy as sc
+from pymonocle3.preprocess import preprocess_adata
+from pymonocle3.nearest_neighbors import make_nn_index
 from pymonocle3.utils import load_data, perform_svd, estimate_size_factors, normalize_data
 
 adata = load_data(dirs='./test/data/pbmc4k')
@@ -20,3 +22,5 @@ normalize_data(adata, method='log1p', key_added='AAA')
 sc.pp.scale()
 
 adata_  = perform_svd(adata, n_components=50)
+
+adata_ = preprocess_adata(adata, build_nn_index=True)
