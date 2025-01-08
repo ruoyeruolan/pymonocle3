@@ -6,12 +6,10 @@
 @Time       : 2025/01/08 19:22
 @Describe   : 
 """
-import logging
 import warnings
 import scanpy as sc
 from anndata import AnnData
 from scipy.sparse import issparse
-from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA, TruncatedSVD, IncrementalPCA,NMF
 
 
@@ -29,9 +27,9 @@ class DimensionReduction:
         model, optional
             model name, by default 'pca'
         center, optional
-            whether or not to center the data, by default True
+            whether to center the data, by default True
         scale, optional
-            whether or not to scale the data, by default True
+            whether to scale the data, by default True
         random_state, optional, by default 42
         """
         
