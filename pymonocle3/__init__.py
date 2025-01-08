@@ -16,3 +16,7 @@ __email__ = "ryrl970311@gmail.com"
 __version__ = VERSION
 
 __all__ = ['utils']
+
+
+# from .nearest_neighbors import make_nn_index
+# from .decomposition import DimensionReduction

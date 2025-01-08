@@ -12,8 +12,8 @@ import scanpy as sc
 from anndata import AnnData
 from typing import Optional
 
-from nearest_neighbors import make_nn_index
-from decomposition import DimensionReduction
+from pymonocle3.nearest_neighbors import make_nn_index
+from pymonocle3.decomposition import DimensionReduction
 
 
 def preprocess_adata(adata: AnnData, model: str = 'pca', n_components: int = 50,
