@@ -81,7 +81,7 @@ def make_nn_index(adata: AnnData, nn_control: dict | None = None, verbose: bool 
         ef_construction = nn_control.get('ef_construction', 200)
         hnsw_index = hnswlib.Index(space=metric, dim=ncols)
         hnsw_index.init_index(max_elements=nrows, ef_construction=ef_construction, M=M)
-        hnsw_index.add_items(data, num_threads=)
+        hnsw_index.add_items(data, num_threads=-1)
         return hnsw_index, nn_control
 
     else:
