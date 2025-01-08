@@ -124,37 +124,20 @@ def perform_svd(adata: AnnData,
     logging.info(f'Performing {method} with {n_components} components...')
     cls = methods[method](n_components=n_components, algorithm=algorithm, **kwargs)
     cls = cls.fit(adata.X)
-    v = cls.components_.T
-    d = cls.singular_values_
-
-    cls_ = cls.transform(adata.X)
-    u = cls_ / d[np.newaxis, :]
-
-    logging.info(f'Add SVD results to adata...')
-    adata.obsm[f'X_{method}'] = cls_
-    adata.varm['right_'] = v
-    adata.obsm['left_'] = u
-    adata.uns[method] = {    
-        'algorithm': cls.algorithm,
-        'n_components': cls.n_components,
-        'n_features_in_': cls.n_features_in_,
-        'singular_values': cls.singular_values_,
-        'explained_variance_': cls.explained_variance_,
-        'explained_variance_ratio_': cls.explained_variance_ratio_,
-        
-        'sdev': d / max(1, np.sqrt(adata.n_obs - 1)),  # NOTE: standard deviation, row is cell, col is gene
-    } if method == 'svd' else {
-        'mean_': cls.mean_,
-        'n_samples_': cls.n_samples_,
-        'n_features_': cls.n_features_,
-        'singular_values_': cls.singular,
-        'n_components_': cls.n_components_,
-        'n_features_in_': cls.n_features_in_,
-        'components_ndarray': cls.components_,
-        'noise_variance_': cls.noise_variance_,
-        'explained_variance_': cls.explained_variance_,
-        'feature_names_in_': cls.get_feature_names_in_,
-        'explained_variance_ratio_': cls.explained_variance_ratio_,
-    } if method == 'pca' else None
+    adata.uns[f'{method}_fit'] = cls
     return adata
 
+
+def get_singular_values(adata: AnnData, method: Literal['svd', 'pca'] = 'svd'):
+
+    if adata.uns.get(method) is None:
+        raise ValueError(f'Please perform {method} first!')
+    
+    v = adata.uns[method].components_.T  # right singular vectors
+    d = adata.uns[method].singluar_values_  # singular values
+    
+    if adata.obsm.get(method) is None:
+        raise ValueError(f'Please perform transformmation by {method} first!')
+
+    u = adata.obsm[method] / d[np.newaxis, :]  # left singular vectors
+    return u, d, v
