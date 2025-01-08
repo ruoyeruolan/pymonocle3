@@ -122,11 +122,7 @@ def perform_svd(adata: AnnData,
     adata.obsm['left_'] = u
     adata.uns['svd'] = {
         'singular_values': d,
+        'sdev': d / max(1, np.sqrt(adata.n_obs - 1)),  # NOTE: standard deviation, row is cell, col is gene
         'n_components': n_components,
     }
     return adata
-
-
-    
-
-
