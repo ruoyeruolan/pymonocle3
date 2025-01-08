@@ -9,6 +9,8 @@
 """
 import logging
 import warnings
+
+import inspect
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -16,7 +18,7 @@ from anndata import AnnData
 from pathlib import Path, PurePath
 from typing import Literal
 from scipy.sparse import csr_matrix, issparse
-from sklearn.decomposition import TruncatedSVD as skTruncatedSVD
+from sklearn.decomposition import TruncatedSVD, PCA
 
 def load_data(dirs: str = None, fname: Path | str = None, **kwargs) -> AnnData:
     """
@@ -78,16 +80,24 @@ def perform_svd(adata: AnnData,
                 center: bool = True,
                 scale: bool = True,
                 n_components: int = 50,
-                algorithm: Literal['arpack', 'randomized'] = 'randomized', **kwargs) -> AnnData:
+                method: Literal['svd', 'pca'] = 'svd',
+                algorithm: Literal['auto’, ‘full’, ‘covariance_eigh’, ''arpack', 'randomized'] = 'randomized', 
+                **kwargs) -> AnnData:
     """
     Perform SVD on matrix
     Parameters
     ----------
     adata: AnnData, n_cells * n_genes
-    center: bool, whether to center the data, if `adata.X` is sparse, it will be converted to dense, default is True
+    center: bool, whether to center the data, default is True
+            if `adata.X` is sparse, it will be converted to dense.
+            if method is 'pca', center must be True.
+
     scale: bool, whether to scale the data, default is True
     n_components: int, number of components to keep, default is 50
-    algorithm:  str, algorithm to use, default is 'randomized'
+    algorithm:  str, algorithm to use, default is 'randomized',
+                can be 'auto’, 'full', 'covariance_eigh', 'arpack', 'randomized', default is 'randomized', 
+                'arpack' or 'randomized' onnly for TruncatedSVD
+    method: str, method to use, can be 'svd' or 'pca', default is 'svd'
     kwargs: additional arguments for `sklearn.decomposition.TruncatedSVD` and `scanpy.pp.scale`
 
     Returns
@@ -95,8 +105,8 @@ def perform_svd(adata: AnnData,
     AnnData, with `X_svd`, `right_`, `left_`, `svd` in `obsm`, `varm`, `uns`, respectively
     """
     
-    if issparse(adata.X):
-        warnings.warn(
+    if issparse(adata.X) and center:
+       warnings.warn(
             'The input data is sparse, centering will make it dense, '
             'if the data is too large, it may cause memory error.'
         )
@@ -107,8 +117,12 @@ def perform_svd(adata: AnnData,
     if scale is True:
         sc.pp.scale(adata, zero_center=center, **kwargs)
 
-    logging.info(f'Performing SVD with {n_components} components...')
-    cls = skTruncatedSVD(n_components=n_components, algorithm=algorithm, **kwargs)
+    methods = {
+        'svd': TruncatedSVD,
+        'pca': PCA,
+    }
+    logging.info(f'Performing {method} with {n_components} components...')
+    cls = methods[method](n_components=n_components, algorithm=algorithm, **kwargs)
     cls = cls.fit(adata.X)
     v = cls.components_.T
     d = cls.singular_values_
@@ -117,12 +131,30 @@ def perform_svd(adata: AnnData,
     u = cls_ / d[np.newaxis, :]
 
     logging.info(f'Add SVD results to adata...')
-    adata.obsm['X_svd'] = cls_
+    adata.obsm[f'X_{method}'] = cls_
     adata.varm['right_'] = v
     adata.obsm['left_'] = u
-    adata.uns['svd'] = {
-        'singular_values': d,
+    adata.uns[method] = {    
+        'algorithm': cls.algorithm,
+        'n_components': cls.n_components,
+        'n_features_in_': cls.n_features_in_,
+        'singular_values': cls.singular_values_,
+        'explained_variance_': cls.explained_variance_,
+        'explained_variance_ratio_': cls.explained_variance_ratio_,
+        
         'sdev': d / max(1, np.sqrt(adata.n_obs - 1)),  # NOTE: standard deviation, row is cell, col is gene
-        'n_components': n_components,
-    }
+    } if method == 'svd' else {
+        'mean_': cls.mean_,
+        'n_samples_': cls.n_samples_,
+        'n_features_': cls.n_features_,
+        'singular_values_': cls.singular,
+        'n_components_': cls.n_components_,
+        'n_features_in_': cls.n_features_in_,
+        'components_ndarray': cls.components_,
+        'noise_variance_': cls.noise_variance_,
+        'explained_variance_': cls.explained_variance_,
+        'feature_names_in_': cls.get_feature_names_in_,
+        'explained_variance_ratio_': cls.explained_variance_ratio_,
+    } if method == 'pca' else None
     return adata
+
