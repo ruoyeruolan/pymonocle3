@@ -8,13 +8,14 @@
 @Describe   :
 """
 import logging
+from typing import Union
 
 import hnswlib
 import numpy as np
 from annoy import AnnoyIndex
 from scipy.sparse import issparse, csr_matrix
 
-def make_nn_index(data: np.array | csr_matrix, nn_control: dict, verbose: bool = False):
+def make_nn_index(data: Union[np.ndarray, csr_matrix], nn_control: dict, verbose: bool = False):
     """
     Build a nearest neighbors index for the given data.
     Parameters
