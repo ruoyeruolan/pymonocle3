@@ -7,13 +7,21 @@
 @Time       : 2025/1/7 14:48
 @Describe   :
 """
+import pandas as pd
 import scanpy as sc
 from pymonocle3.preprocess import preprocess_adata
-from pymonocle3.nearest_neighbors import make_nn_index
-from pymonocle3.utils import load_data, perform_svd, estimate_size_factors, normalize_data
+from pymonocle3.utils import load_data, create_adata,perform_svd, estimate_size_factors, normalize_data
 
+
+# Load data
 adata = load_data(dirs='./test/data/pbmc4k')
 adata = estimate_size_factors(adata, method='normalize')
+
+
+# Create AnnData object
+expression = pd.read_csv('./test/data/pbmc4k/filtered_gene_bc_matrices/hg19/matrix.mtx')
+
+
 
 sc.pp.log1p(adata)
 
@@ -23,4 +31,3 @@ sc.pp.scale()
 
 adata_  = perform_svd(adata, n_components=50)
 
-adata_ = preprocess_adata(adata, build_nn_index=True)
